@@ -36,13 +36,13 @@ module Line
       def post_json(url, json, query: {}, header: {})
         json = json.to_json unless json.is_a?(String)
         header = JSON_HEADER.merge(header)
-        post(url, json, query, header)
+        post(url, json, query: query, header: header)
       end
 
       def post_form(url, form, query: {}, header: {})
         body = URI.encode_www_form(form)
         header = FORM_HEADER.merge(header)
-        post(url, body, query, header)
+        post(url, body, query: query, header: header)
       end
 
       def post_file(url, file, query: {}, header: {})
@@ -54,34 +54,39 @@ module Line
         end
         header = {'Content-Type' => content_type}.merge(header)
         body = file.seek(0) && file.read
-        post(url, body, query, header)
+        post(url, body, query: query, header: header)
       end
 
       # primitive methods
       def get(url, query: {}, header: {})
-        req = Net::HTTP::Get.new(URI(url))
-        http(req, query, header)
+        req = Net::HTTP::Get.new(uri_with_query(url, query))
+        http(req, header)
       end
 
       def delete(url, query: {}, header: {})
-        req = Net::HTTP::Delete.new(URI(url))
-        http(req, query, header)
+        req = Net::HTTP::Delete.new(uri_with_query(url, query))
+        http(req, header)
       end
 
       def post(url, body, query: {}, header: {})
-        req = Net::HTTP::Post.new(URI(url))
+        req = Net::HTTP::Post.new(uri_with_query(url, query))
         req.body = body
-        http(req, query, header)
+        http(req, header)
       end
 
       private
 
-      def http(req, query, header)
+      def uri_with_query(url, query)
+        uri = URI(url)
+        uri.query = URI.encode_www_form(query)
+        uri
+      end
+
+      def http(req, header)
         default_headers.merge(header).each do |key, val|
           req[key.to_s] = val.to_s
         end
         uri = req.uri
-        uri.query = URI.encode_www_form(query)
         http = Net::HTTP.new(uri.host, uri.port)
 
         if uri.scheme == "https"
